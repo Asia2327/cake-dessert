@@ -129,8 +129,32 @@ form.addEventListener('submit', function (e) {
     return;
   }
 
-  alert('Your reservation has been successfully submitted!');
-  form.reset();
+  const resultBox = document.getElementById('reservation-result');
+
+form.addEventListener('submit', function (e) {
+  e.preventDefault();
+
+  const name = document.getElementById('name').value.trim();
+  const email = document.getElementById('email').value.trim();
+  const persons = document.getElementById('persons').value;
+  const date = document.getElementById('date').value;
+  const time = document.getElementById('time').value;
+
+  if (!name || !email || !persons || !date || !time) {
+    alert('Please fill in all required fields.');
+    return;
+  }
+
+  // Show data on the page
+  document.getElementById('r-name').textContent = name;
+  document.getElementById('r-email').textContent = email;
+  document.getElementById('r-persons').textContent = persons;
+  document.getElementById('r-date').textContent = date;
+  document.getElementById('r-time').textContent = time;
+
+  resultBox.style.display = 'block';
+});
+
 });
 
 // Fade-in when scrolling through all sections
@@ -215,6 +239,107 @@ window.addEventListener('load', () => {
 });
 
 
+// ===============================
+// Book a Table - CRUD (User Side)
+// ===============================
+
+const reservationForm = document.querySelector('#contact form');
+const reservationsList = document.getElementById('reservations-list');
+
+// CREATE reservation
+reservationForm.addEventListener('submit', async function (e) {
+  e.preventDefault();
+
+  const reservation = {
+    name: name.value,
+    email: email.value,
+    persons: persons.value,
+    date: date.value,
+    time: time.value,
+    message: message.value
+  };
+
+  const response = await fetch('/reserve', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(reservation)
+  });
+
+  if (response.ok) {
+    reservationForm.reset();
+    loadReservations();
+  } else {
+    alert('Error while booking reservation');
+  }
+});
+
+// READ reservations
+async function loadReservations() {
+  const res = await fetch('/reserve');
+  const data = await res.json();
+
+  reservationsList.innerHTML = '';
+
+  data.forEach(r => {
+    reservationsList.innerHTML += `
+      <div class="reservation-card" data-id="${r.id}">
+        <p><strong>Name:</strong> ${r.name}</p>
+        <p><strong>Email:</strong> ${r.email}</p>
+        <p><strong>Persons:</strong> ${r.persons}</p>
+        <p><strong>Date:</strong> ${r.date}</p>
+        <p><strong>Time:</strong> ${r.time}</p>
+        <p><strong>Message:</strong> ${r.message || ''}</p>
+
+        <button onclick="editReservation(${r.id})">Update</button>
+        <button onclick="deleteReservation(${r.id})">Delete</button>
+        <hr>
+      </div>
+    `;
+  });
+}
+
+// DELETE
+async function deleteReservation(id) {
+  await fetch(`/reserve/${id}`, { method: 'DELETE' });
+  loadReservations();
+}
+
+// UPDATE (fill form)
+async function editReservation(id) {
+  const res = await fetch(`/reserve/${id}`);
+  const r = await res.json();
+
+  name.value = r.name;
+  email.value = r.email;
+  persons.value = r.persons;
+  date.value = r.date;
+  time.value = r.time;
+  message.value = r.message;
+
+  reservationForm.onsubmit = async function (e) {
+    e.preventDefault();
+
+    await fetch(`/reserve/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: name.value,
+        email: email.value,
+        persons: persons.value,
+        date: date.value,
+        time: time.value,
+        message: message.value
+      })
+    });
+
+    reservationForm.reset();
+    reservationForm.onsubmit = null;
+    loadReservations();
+  };
+}
+
+// Load reservations on page load
+loadReservations();
 
 
 
