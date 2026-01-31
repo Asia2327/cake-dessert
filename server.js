@@ -1,273 +1,124 @@
-// ========================================
-// server.js - Ready for Render deployment
-// ========================================
-
 const express = require("express");
 const path = require("path");
 const session = require("express-session");
-const db = require("./db"); // SQLite database connection
+const db = require("./db"); // SQLite bağlantısı
 
 const app = express();
-
-// ===============================
-// Dynamic Port (required for Render)
-// ===============================
 const PORT = process.env.PORT || 3000;
 
 // ===============================
 // Middleware
 // ===============================
 app.use(express.json());
-app.use(express.urlencoded({ extended: true })); // Parse form data
-app.use(express.static(path.join(__dirname, "public"))); // Serve static files (HTML, CSS, JS, images)
+app.use(express.urlencoded({ extended: true }));
+app.use(express.static(path.join(__dirname, "public")));
 
 // ===============================
-// Session setup
+// Session Setup
 // ===============================
 app.use(session({
-  secret: "secretKey",        // Secret key for session encryption
-  resave: false,              // Do not save session if unmodified
-  saveUninitialized: true     // Save new sessions
+  secret: "secretKey", 
+  resave: false,
+  saveUninitialized: false, // Daha güvenli bir tercih
+  cookie: { secure: false } // HTTP için false, HTTPS (Render) için ayar gerekebilir
 }));
 
 // ===============================
-// Routes
+// Auth Routes (Login / Register)
 // ===============================
 
-// Test route
-app.get("/test", (req, res) => {
-  res.send("TEST ROUTE WORKS ✅");
-});
+app.get("/login", (req, res) => res.sendFile(path.join(__dirname, "public/login.html")));
+app.get("/register", (req, res) => res.sendFile(path.join(__dirname, "public/register.html")));
 
-// ===============================
-// CREATE reservation
-// ===============================
-app.post("/reserve", (req, res) => {
-  const { name, email, persons, date, time, message } = req.body;
-
-  const query = `
-    INSERT INTO reservations (name, email, persons, date, time, message)
-    VALUES (?, ?, ?, ?, ?, ?)
-  `;
-
-  db.run(query, [name, email, persons, date, time, message], function (err) {
-    if (err) {
-      return res.status(500).json({ error: "Database error" });
-    }
-
-    // return created reservation id
-    res.json({
-      id: this.lastID,
-      name,
-      email,
-      persons,
-      date,
-      time,
-      message
-    });
-  });
-});
-
-// ===============================
-// READ reservation
-// ===============================
-app.get("/reserve/:id", (req, res) => {
-  const { id } = req.params;
-
-  db.get(
-    "SELECT * FROM reservations WHERE id = ?",
-    [id],
-    (err, row) => {
-      if (err) return res.status(500).json({ error: "Database error" });
-      res.json(row);
-    }
-  );
-});
-
-// ===============================
-// UPDATE reservation
-// ===============================
-app.put("/reserve/:id", (req, res) => {
-  const { id } = req.params;
-  const { name, email, persons, date, time, message } = req.body;
-
-  const query = `
-    UPDATE reservations
-    SET name=?, email=?, persons=?, date=?, time=?, message=?
-    WHERE id=?
-  `;
-
-  db.run(
-    query,
-    [name, email, persons, date, time, message, id],
-    function (err) {
-      if (err) return res.status(500).json({ error: "Database error" });
-      res.json({ updated: true });
-    }
-  );
-});
-
-// ===============================
-// DELETE reservation
-// ===============================
-app.delete("/reserve/:id", (req, res) => {
-  const { id } = req.params;
-
-  db.run(
-    "DELETE FROM reservations WHERE id = ?",
-    [id],
-    function (err) {
-      if (err) return res.status(500).json({ error: "Database error" });
-      res.json({ deleted: true });
-    }
-  );
-});
-// GET home page
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "public/index.html"));
-});
-
-// GET register page
-app.get("/register", (req, res) => {
-  res.sendFile(path.join(__dirname, "public/register.html"));
-});
-
-// POST register
 app.post("/register", (req, res) => {
   const { name, email, password } = req.body;
-
   const query = `INSERT INTO users (name, email, password) VALUES (?, ?, ?)`;
   db.run(query, [name, email, password], function(err) {
-    if(err){
-      if(err.message.includes("UNIQUE constraint failed")){
-        return res.send("Email already registered"); // Duplicate email
-      }
-      return res.send("Database error"); // Other DB errors
+    if (err) {
+      if (err.message.includes("UNIQUE")) return res.status(400).send("Email already registered");
+      return res.status(500).send("Database error");
     }
-    res.redirect("/login"); // Redirect after successful registration
+    res.redirect("/login");
   });
 });
 
-// GET login page
-app.get("/login", (req, res) => {
-  res.sendFile(path.join(__dirname, "public/login.html"));
-});
-
-// POST login
 app.post("/login", (req, res) => {
   const { email, password } = req.body;
-
   const query = `SELECT * FROM users WHERE email = ? AND password = ?`;
   db.get(query, [email, password], (err, user) => {
-    if(err) return res.send("Database error"); // DB error
-
-    if(user){
-      req.session.user = user.name; // Save user name in session
-      res.redirect("/"); // Redirect to home
+    if (err) return res.status(500).send("Database error");
+    if (user) {
+      req.session.user = user.name;
+      req.session.userEmail = user.email; // Kritik: Email'i session'a kaydetmelisin
+      res.redirect("/");
     } else {
-      res.send("Invalid email or password"); // Invalid credentials
+      res.status(401).send("Invalid credentials");
     }
   });
 });
 
-// GET logout
 app.get("/logout", (req, res) => {
-  req.session.destroy(() => {
-    res.redirect("/"); // Redirect after session destroyed
-  });
+  req.session.destroy(() => res.redirect("/"));
 });
 
-// GET session status
 app.get("/session-status", (req, res) => {
-  if(req.session.user){
-    res.json({ loggedIn: true, user: req.session.user }); // User logged in
-  } else {
-    res.json({ loggedIn: false }); // User not logged in
-  }
+  res.json(req.session.user ? { loggedIn: true, user: req.session.user } : { loggedIn: false });
 });
 
-
 // ===============================
-// RESERVATIONS CRUD ROUTES
+// Reservation CRUD Routes
 // ===============================
 
-// CREATE reservation
+// 1. REZERVASYON OLUŞTUR (Create)
 app.post("/reserve", (req, res) => {
-  const { name, email, persons, date, time, message } = req.body;
+  if (!req.session.userEmail) return res.status(401).json({ error: "Giriş yapmalısınız" });
+  
+  const { name, persons, date, time, message } = req.body;
+  const email = req.session.userEmail;
+  const query = `INSERT INTO reservations (name, email, persons, date, time, message) VALUES (?, ?, ?, ?, ?, ?)`;
 
-  const query = `
-    INSERT INTO reservations (name, email, persons, date, time, message)
-    VALUES (?, ?, ?, ?, ?, ?)
-  `;
-
-  db.run(query, [name, email, persons, date, time, message], function (err) {
-    if (err) {
-      console.error(err);
-      return res.status(500).json({ error: "Database error" });
-    }
-    res.status(200).json({ success: true });
+  db.run(query, [name, email, persons, date, time, message], function(err) {
+    if (err) return res.status(500).json({ error: "Veritabanı hatası" });
+    res.json({ success: true, id: this.lastID });
   });
 });
 
-// READ all reservations
-app.get("/reserve", (req, res) => {
-  db.all("SELECT * FROM reservations", [], (err, rows) => {
-    if (err) {
-      return res.status(500).json({ error: "Database error" });
-    }
+// 2. KULLANICIYA AİT TÜM REZERVASYONLARI GETİR (Read)
+app.get("/my-reservations", (req, res) => {
+  if (!req.session.userEmail) return res.status(401).json({ error: "Yetkisiz erişim" });
+
+  // Not: Giriş yapan kişinin sadece kendi emailine ait verileri görmesi için email üzerinden filtreliyoruz
+  db.all("SELECT * FROM reservations WHERE email = ?", [req.session.userEmail], (err, rows) => {
+    if (err) return res.status(500).json({ error: "Veritabanı hatası" });
     res.json(rows);
   });
 });
 
-// READ single reservation
-app.get("/reserve/:id", (req, res) => {
-  const id = req.params.id;
+// server.js içindeki UPDATE kısmını 
+app.put("/reserve/:id", (req, res) => {
+  if (!req.session.userEmail) return res.status(401).json({ error: "Yetkisiz" });
 
-  db.get("SELECT * FROM reservations WHERE id = ?", [id], (err, row) => {
-    if (err) {
-      return res.status(500).json({ error: "Database error" });
-    }
-    res.json(row);
+  const { persons, date, time } = req.body;
+  const query = `UPDATE reservations SET persons=?, date=?, time=? WHERE id=?`;
+
+  db.run(query, [persons, date, time, req.params.id], function(err) {
+    if (err) return res.status(500).json({ error: "Güncelleme hatası" });
+    res.json({ success: true });
   });
 });
-
-// UPDATE reservation
-app.put("/reserve/:id", (req, res) => {
-  const id = req.params.id;
-  const { name, email, persons, date, time, message } = req.body;
-
-  const query = `
-    UPDATE reservations
-    SET name = ?, email = ?, persons = ?, date = ?, time = ?, message = ?
-    WHERE id = ?
-  `;
-
-  db.run(
-    query,
-    [name, email, persons, date, time, message, id],
-    function (err) {
-      if (err) {
-        return res.status(500).json({ error: "Database error" });
-      }
-      res.json({ success: true });
-    }
-  );
-});
-
-// DELETE reservation
+// 4. REZERVASYON SİL (Delete)
+// Frontend'den fetch(`/reserve/${id}`, { method: 'DELETE' }) şeklinde çağrılmalı
 app.delete("/reserve/:id", (req, res) => {
-  const id = req.params.id;
+  if (!req.session.userEmail) return res.status(401).json({ error: "Yetkisiz" });
 
-  db.run("DELETE FROM reservations WHERE id = ?", [id], function (err) {
-    if (err) {
-      return res.status(500).json({ error: "Database error" });
-    }
+  db.run("DELETE FROM reservations WHERE id = ?", [req.params.id], function(err) {
+    if (err) return res.status(500).json({ error: "Silme hatası" });
     res.json({ success: true });
   });
 });
 
 // ===============================
-// Start server
+// Start Server
 // ===============================
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);

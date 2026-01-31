@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>My Bookings</title>
+
+  <!-- style -->
+  <link rel="stylesheet" href="style.css">
+
+  <!-- fontawesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css"/>
+
+  <!-- favicon -->
+  <link rel="shortcut icon" href="./imgs/homelogo.png" type="image/x-icon">
+</head>
+
+<body>
+
+<!-- header start -->
+<header id="header">
+  <nav class="navbar">
+    <a href="index.html">
+      <img src="./imgs/android-chrome-512x512.png" width="600" height="300"> </a>
+    <ul>
+      <li><a href="index.html" class="nav-link">Home</a></li>
+      <li><a href="about.html" class="nav-link">About</a></li>
+      <li><a href="menu.html" class="nav-link">Menu</a></li>
+      <li><a href="testimonials.html" class="nav-link">Testimonials</a></li>
+      <li><a href="contact.html" class="nav-link">Contact</a></li>
+      <li><a href="mybookings.html" class="nav-link active">My Bookings</a></li>
+    </ul>
+  </nav>
+</header>
+<!-- header end -->
+
+<main>
+
+<!-- My Bookings start -->
+<section id="mybookings">
+  <div class="container">
+    <div class="heading">
+      <span class="text-primary">Your Reservations</span>
+      <h2>My Bookings</h2>
+      
+    </div>
+
+    <!-- reservations list -->
+    <div id="reservationsList">
+      <!-- JS will load reservations here -->
+    </div>
+
+      <!-- edit form -->
+      <form id="editForm" style="display:none;">
+       <h3>Edit Reservation</h3>
+
+         <input type="number" id="editPersons" required>
+         <input type="date" id="editDate" required>
+         <input type="time" id="editTime" required>
+
+        <button type="submit">Save</button>
+      </form>
+    </div>
+  </div>
+</section>
+<!-- My Bookings end -->
+
+</main>
+
+<!-- footer start -->
+<div id="footer">
+  <div class="copyright">
+    <p>
+      &copy; All rights reserved | Made by
+      <strong><a href="https://assiaaboshar.com" target="_blank">Assia Aboshar</a></strong>
+    </p>
+  </div>
+</div>
+<!-- footer end -->
+
+<script src="script.js"></script>
+</body>
+</html>
